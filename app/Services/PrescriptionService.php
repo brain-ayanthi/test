@@ -208,7 +208,7 @@ class PrescriptionService
                 'updated_at' => $now,
             ]);
 
-            return $prescription->fresh();
+            return $this->saveAndDeductStock($prescription);
         });
     }
 
@@ -217,29 +217,7 @@ class PrescriptionService
      */
     public function saveAndDeductStock(Prescription $prescription): Prescription
     {
-        $pending = DB::table('prescription_items')
-            ->where('prescription_id', $prescription->id)
-            ->where('stock_deducted', 0)
-            ->get(['id', 'product_id', 'quantity']);
-
-        if ($pending->isNotEmpty()) {
-            $items = $pending->map(fn($i) => [
-                'product_id' => $i->product_id,
-                'quantity' => (float)$i->quantity,
-            ])->all();
-            $deductions = $this->stockService->deductMany($items);
-            foreach ($pending as $item) {
-                $d = $deductions[$item->product_id] ?? null;
-                if ($d) {
-                    DB::table('prescription_items')->where('id', $item->id)->update([
-                        'batch_id' => $d['batch_id'],
-                        'stock_deducted' => 1,
-                    ]);
-                }
-            }
-        }
-        DB::table('prescriptions')->where('id', $prescription->id)->update(['is_printed' => 0]);
-        return $prescription->fresh();
+        return app(PrescriptionStockLedger::class)->deductPending($prescription);
     }
 
     /**
@@ -248,6 +226,8 @@ class PrescriptionService
     public function addPatient(Prescription $prescription, array $data, bool $recalculate = true): PrescriptionPatient
     {
         return DB::transaction(function () use ($prescription, $data, $recalculate) {
+            $prescription = Prescription::whereKey($prescription->id)->lockForUpdate()->firstOrFail();
+            app(PrescriptionEditor::class)->assertEditable($prescription);
             $patient = Patient::findOrFail($data['patient_id']);
             $now = now();
             $doctorFee = (float)($data['doctor_fee'] ?? 0);
@@ -265,7 +245,7 @@ class PrescriptionService
                 $disc = (float)($it['discount'] ?? 0);
                 $total = isset($it['total']) ? (float)$it['total'] : (($qty * $unitPrice) - $disc);
                 $medicine += $total;
-                $itemRows[] = compact('qty','total') + [
+                $itemRows[] = ['quantity' => $qty, 'total' => $total] + [
                     'prescription_id' => $prescription->id,
                     'prescription_patient_id' => 0,
                     'product_id' => $product->id,
@@ -330,6 +310,7 @@ class PrescriptionService
             DB::table('patients')->where('id', $patient->id)->update(['last_visit' => $now]);
 
             if ($recalculate) $prescription->recalculateTotals();
+            $this->saveAndDeductStock($prescription);
             return PrescriptionPatient::find($ppId);
         });
     }

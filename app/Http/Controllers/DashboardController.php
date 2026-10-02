@@ -19,23 +19,25 @@ class DashboardController extends Controller
         // Medicine statistics
         $totalProducts = Product::where('is_active', 1)->count();
         $outOfStock = Product::where('is_active', 1)
-            ->whereDoesntHave('batches', fn ($q) => $q->where('quantity', '>', 0)->whereDate('expiry_date', '>=', now()))
+            ->whereDoesntHave('batches', fn ($q) => $q->where('quantity', '>', 0)->where('expiry_date', '>=', now()->startOfDay()))
             ->count();
         $lowStock = Product::where('is_active', 1)->where('min_stock', '>', 0)
-            ->withSum(['batches as stock' => fn ($q) => $q->where('quantity', '>', 0)->whereDate('expiry_date', '>=', now())], 'quantity')
+            ->withSum(['batches as stock' => fn ($q) => $q->where('quantity', '>', 0)->where('expiry_date', '>=', now()->startOfDay())], 'quantity')
             ->get()
             ->filter(fn ($p) => $p->stock !== null && $p->stock > 0 && $p->stock <= $p->min_stock)
             ->count();
         $available = max(0, $totalProducts - $outOfStock - $lowStock);
 
+        // startOfDay(): a batch that expires today is still live, not expired.
+        // (whereDate with a clock-carrying now() treats today as already past.)
         $expired = ProductBatch::where('quantity', '>', 0)
-            ->whereDate('expiry_date', '<', now())->count();
+            ->where('expiry_date', '<', now()->startOfDay())->count();
         $expiringSoon = ProductBatch::where('quantity', '>', 0)
-            ->whereBetween('expiry_date', [now(), now()->addMonths(3)])->count();
+            ->whereBetween('expiry_date', [now()->startOfDay(), now()->addMonths(3)->endOfDay()])->count();
 
         // Low stock products list
         $lowStockProducts = Product::where('is_active', 1)
-            ->withSum(['batches as stock' => fn ($q) => $q->where('quantity', '>', 0)->whereDate('expiry_date', '>=', now())], 'quantity')
+            ->withSum(['batches as stock' => fn ($q) => $q->where('quantity', '>', 0)->where('expiry_date', '>=', now()->startOfDay())], 'quantity')
             ->orderBy('name')
             ->get()
             ->filter(fn ($p) => $p->stock !== null && $p->stock > 0 && $p->min_stock > 0 && $p->stock <= $p->min_stock)
@@ -43,7 +45,7 @@ class DashboardController extends Controller
 
         // Expiring soon batches grouped by month
         $expiring = ProductBatch::where('quantity', '>', 0)
-            ->whereBetween('expiry_date', [now(), now()->addMonths(4)])
+            ->whereBetween('expiry_date', [now()->startOfDay(), now()->addMonths(4)->endOfDay()])
             ->orderBy('expiry_date')
             ->get()
             ->groupBy(fn ($b) => $b->expiry_date->format('F'));
@@ -74,7 +76,7 @@ class DashboardController extends Controller
 
         // Expired batches list
         $expiredBatches = ProductBatch::where('quantity', '>', 0)
-            ->whereDate('expiry_date', '<', now())
+            ->where('expiry_date', '<', now()->startOfDay())
             ->with('product:id,name')
             ->latest('expiry_date')->take(5)->get();
 

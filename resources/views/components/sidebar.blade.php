@@ -4,7 +4,11 @@
     </div>
 
     @php
-        $current = request()->route()->getName();
+        $current = request()->route()?->getName() ?? '';
+        $canAdjustStock = auth()->check()
+            && auth()->user()->is_active
+            && auth()->user()->hasAnyRole(['Admin', 'Doctor'])
+            && \Illuminate\Support\Facades\Route::has('stock-adjustments.index');
         $nav = [
             ['route' => 'dashboard', 'icon' => 'fa-home', 'label' => 'Dashboard'],
             ['route' => 'patients.index', 'icon' => 'fa-user-injured', 'label' => 'Patients'],
@@ -13,6 +17,7 @@
             ['route' => 'sales.pos', 'icon' => 'fa-cash-register', 'label' => 'POS / Sales'],
             ['route' => 'sales.index', 'icon' => 'fa-file-invoice-dollar', 'label' => 'Invoices'],
             ['route' => 'products.index', 'icon' => 'fa-pills', 'label' => 'Inventory'],
+            ['route' => 'stock-adjustments.index', 'icon' => 'fa-sliders-h', 'label' => 'Stock Adjustments'],
             ['route' => 'purchases.index', 'icon' => 'fa-truck-loading', 'label' => 'Purchases'],
             ['route' => 'vendors.index', 'icon' => 'fa-truck', 'label' => 'Vendors'],
             ['route' => 'vendor-payments.index', 'icon' => 'fa-money-check-alt', 'label' => 'Vendor Payments'],
@@ -24,6 +29,7 @@
     @endphp
 
     @foreach($nav as $item)
+        @continue($item['route'] === 'stock-adjustments.index' && !$canAdjustStock)
         <a href="{{ route($item['route']) }}"
            class="w-12 h-12 flex items-center justify-center rounded-lg mb-1 transition group relative
                   {{ str_starts_with($current, explode('.', $item['route'])[0]) ? 'bg-yellow-400 text-gray-900' : 'hover:bg-gray-800 hover:text-white' }}"

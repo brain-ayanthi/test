@@ -55,6 +55,7 @@ class SaleService
                     'discount' => $rxItem->discount,
                     'total' => $rxItem->total,
                 ]);
+                app(InventoryMovementLedger::class)->saleLink($sale, $rxItem, $prescription);
             }
 
             $sale->update([
@@ -108,7 +109,10 @@ class SaleService
             ]);
 
             foreach ($items as $line) {
-                $deductions = $this->stockService->deductStock($line['product_id'], $line['quantity']);
+                $deductions = $this->stockService->deductStock($line['product_id'], $line['quantity'], [
+                    'kind' => 'sale', 'source_id' => $sale->id,
+                    'reference' => $sale->invoice_number ?: 'SALE-'.$sale->id, 'document_date' => $sale->sale_date,
+                ]);
                 $batch = $deductions[0] ?? null;
 
                 $unitPrice = (float) $line['unit_price'];

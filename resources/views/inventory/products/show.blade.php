@@ -1,47 +1,21 @@
 @extends('layouts.app')
-@section('title', $product->name)
-@section('page-title', 'Product Details')
-
+@section('title', $product->name.' — Stock History')
+@section('page-title', 'Product Stock History')
+@include('components.inventory-styles')
 @section('content')
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-    <div class="bg-white rounded-xl shadow-sm p-5">
-        <h2 class="text-xl font-bold">{{ $product->name }}</h2>
-        <p class="text-gray-500">{{ $product->form_type }} {{ $product->strength }}</p>
-        <p class="text-sm text-gray-400 font-mono">{{ $product->sku }}</p>
-        <div class="mt-4 space-y-1 text-sm">
-            <p>Generic: <strong>{{ $product->generic_name }}</strong></p>
-            <p>Category: {{ $product->category?->name ?? '-' }}</p>
-            <p>Selling Price: <strong class="text-green-600">Rs {{ number_format($product->selling_price,2) }}</strong></p>
-            <p>Purchase Price: Rs {{ number_format($product->purchase_price,2) }}</p>
-            <p>Rack: {{ $product->rack_number }}</p>
-        </div>
-    </div>
-    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-5">
-        <h3 class="font-bold mb-3">Stock Summary (FEFO Batches)</h3>
-        <div class="grid grid-cols-4 gap-3 mb-4">
-            <div class="bg-green-50 p-3 rounded text-center"><div class="text-2xl font-bold text-green-600">{{ $summary['total_stock'] }}</div><div class="text-xs text-gray-500">Total Stock</div></div>
-            <div class="bg-blue-50 p-3 rounded text-center"><div class="text-2xl font-bold text-blue-600">{{ $summary['available'] }}</div><div class="text-xs text-gray-500">Available</div></div>
-            <div class="bg-red-50 p-3 rounded text-center"><div class="text-2xl font-bold text-red-600">{{ $summary['expired'] }}</div><div class="text-xs text-gray-500">Expired</div></div>
-            <div class="bg-amber-50 p-3 rounded text-center"><div class="text-2xl font-bold text-amber-600">{{ $summary['expiring_soon'] }}</div><div class="text-xs text-gray-500">Expiring Soon</div></div>
-        </div>
-        <table class="w-full text-sm">
-            <thead><tr class="bg-gray-100 text-left"><th class="p-2">Batch</th><th class="p-2">Expiry</th><th class="p-2">Qty</th><th class="p-2">Status</th></tr></thead>
-            <tbody>
-            @foreach($summary['batches'] as $b)
-            <tr class="border-b">
-                <td class="p-2 font-mono">{{ $b->batch_number }}</td>
-                <td class="p-2">{{ $b->expiry_date->format('M Y') }}</td>
-                <td class="p-2 font-bold">{{ $b->quantity }}</td>
-                <td class="p-2">
-                    @if($b->quantity <= 0)<span class="text-red-600 text-xs">Out of Stock</span>
-                    @elseif($b->isExpired())<span class="text-red-600 text-xs">Expired</span>
-                    @elseif($b->isExpiringSoon())<span class="text-amber-600 text-xs">Expiring Soon</span>
-                    @else<span class="text-green-600 text-xs">OK</span>@endif
-                </td>
-            </tr>
-            @endforeach
-            </tbody>
-        </table>
-    </div>
+<div class="iv" data-inventory-version="product-total-v2">
+ <div class="iv-head"><div><h2>{{ $product->name }}</h2><p class="iv-muted">{{ $product->sku }} · {{ $product->category_name ?? 'Uncategorized' }}</p></div><div class="iv-tabs"><a class="iv-btn" href="{{ route('products.index') }}">Back to inventory</a><a class="iv-btn" href="{{ route('reports.inventory',['product_id'=>$product->id]) }}">Inventory Report</a></div></div>
+ @if($errors->any())<div class="iv-errors">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+ <section class="iv-card"><div class="iv-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+  <div class="iv-stat"><small>Available stock (pcs)</small><strong>{{ \App\Support\InventoryQuantity::display($product->available_pcs) }}</strong></div>
+  <div class="iv-stat"><small>Available stock (Purchase Unit)</small><strong style="font-size:19px">{{ \App\Support\InventoryQuantity::packs($product->available_pcs,$product->pieces_per_purchase_unit,$product->purchase_unit) }}</strong></div>
+  <div class="iv-stat"><small>Total recorded stock (all batches, pcs)</small><strong>{{ \App\Support\InventoryQuantity::display($product->recorded_pcs) }}</strong></div>
+ </div></section>
+ @if($product->mismatched_batches>0)<div class="iv-info iv-warn">The tracked balance differs from current recorded stock. A stock change outside tracking may have occurred; review it before relying on this history.</div>@endif
+ <section class="iv-card"><div class="iv-head"><h3>Product stock history</h3><a class="iv-btn" href="{{ route('products.show',$product->id) }}">Reset</a></div>
+ <p class="iv-muted">History from {{ $state->started_at }} ({{ config('app.timezone') }}). Prescription · Purchase Invoice · Stock Adjustment.</p>
+ <form method="GET" action="{{ route('products.show',$product->id) }}">@include('components.inventory-movement-filters')</form>
+ @include('components.inventory-movements')
+ </section>
 </div>
 @endsection

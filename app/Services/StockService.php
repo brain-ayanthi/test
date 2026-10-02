@@ -16,9 +16,10 @@ class StockService
      *
      * @param array $items [['product_id'=>..,'quantity'=>..], ...]
      */
-    public function deductMany(array $items): array
+    public function deductMany(array $items, array $context = []): array
     {
-        return DB::transaction(function () use ($items) {
+        $context['operation_id'] ??= (string) \Illuminate\Support\Str::uuid();
+        return DB::transaction(function () use ($items, $context) {
             // Group by product and sum quantities
             $needed = [];
             foreach ($items as $it) {
@@ -58,7 +59,9 @@ class StockService
                         break;
                     }
                     $take = min((float) $batch->quantity, $remaining);
+                    $before = $batch->quantity;
                     $batch->decrement('quantity', $take);
+                    app(InventoryMovementLedger::class)->record($batch->id, $before, $context + ['kind' => 'stock_out']);
                     $deductions[$pid] = [
                         'batch_id' => $batch->id,
                         'batch_number' => $batch->batch_number,
@@ -75,9 +78,9 @@ class StockService
     /**
      * Deduct stock for a single product (kept for backward compatibility).
      */
-    public function deductStock(int $productId, float $quantity): array
+    public function deductStock(int $productId, float $quantity, array $context = []): array
     {
-        $result = $this->deductMany([['product_id' => $productId, 'quantity' => $quantity]]);
+        $result = $this->deductMany([['product_id' => $productId, 'quantity' => $quantity]], $context);
         return $result ? [$result[$productId]] : [];
     }
 
@@ -100,12 +103,19 @@ class StockService
                 ->lockForUpdate()
                 ->first();
 
+            $purchase = $purchaseId ? DB::table('purchases')->where('id', $purchaseId)->first() : null;
+            $context = ['kind' => $purchaseId ? 'purchase' : 'stock_in', 'source_id' => $purchaseId,
+                'source_item_id' => $purchaseItemId,
+                'reference' => $purchase ? ($purchase->invoice_number ?: 'PUR-'.$purchaseId) : 'Stock received',
+                'document_date' => $purchase->purchase_date ?? null];
             if ($existing) {
+                $before = $existing->quantity;
                 $existing->increment('quantity', $quantity);
+                app(InventoryMovementLedger::class)->record($existing->id, $before, $context);
                 return $existing;
             }
 
-            return ProductBatch::create([
+            $created = ProductBatch::create([
                 'product_id' => $productId,
                 'batch_number' => $batchNumber,
                 'expiry_date' => $expiryDate,
@@ -116,6 +126,8 @@ class StockService
                 'purchase_id' => $purchaseId,
                 'purchase_item_id' => $purchaseItemId,
             ]);
+            app(InventoryMovementLedger::class)->record($created->id, '0.00', $context);
+            return $created;
         });
     }
 }

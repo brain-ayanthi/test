@@ -58,11 +58,16 @@ class Product extends Model
         return $this->hasMany(ProductBatch::class)->orderBy('expiry_date', 'asc');
     }
 
+    /**
+     * Available stock in pieces. Always computed from the batch rows so that
+     * any pre-selected/aliased "stock_quantity" column (withSum, raw selects)
+     * can never shadow the real value during JSON serialisation.
+     */
     public function getStockQuantityAttribute(): float
     {
         return (float) $this->batches()
             ->where('quantity', '>', 0)
-            ->where('expiry_date', '>=', now())
+            ->whereDate('expiry_date', '>=', now()->toDateString())
             ->sum('quantity');
     }
 
@@ -79,7 +84,7 @@ class Product extends Model
     {
         return $this->batches()
             ->where('quantity', '>', 0)
-            ->where('expiry_date', '>=', now())
+            ->whereDate('expiry_date', '>=', now()->toDateString())
             ->orderBy('expiry_date', 'asc')
             ->get();
     }
@@ -93,12 +98,12 @@ class Product extends Model
     {
         return $this->batches()
             ->where('quantity', '>', 0)
-            ->whereBetween('expiry_date', [now(), now()->addDays($days)])
+            ->whereBetween('expiry_date', [now()->toDateString(), now()->addDays($days)->toDateString()])
             ->get();
     }
 
     public function getExpiredBatches()
     {
-        return $this->batches()->where('quantity', '>', 0)->where('expiry_date', '<', now())->get();
+        return $this->batches()->where('quantity', '>', 0)->whereDate('expiry_date', '<', now()->toDateString())->get();
     }
 }

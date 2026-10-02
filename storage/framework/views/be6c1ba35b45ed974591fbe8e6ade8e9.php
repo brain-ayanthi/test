@@ -2,6 +2,7 @@
 <?php $__env->startSection('page-title', 'Medicine / Product Inventory'); ?>
 
 <?php $__env->startSection('content'); ?>
+<?php echo $__env->make('reports.partials.inventory-link', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <div class="bg-white rounded-xl shadow-sm p-5">
     <div class="flex flex-wrap gap-3 justify-between mb-4">
         <form method="GET" class="flex gap-2 flex-1 flex-wrap">
@@ -20,7 +21,7 @@
             </select>
             <button class="bg-blue-500 text-white px-4 py-2 rounded-lg"><i class="fas fa-search"></i></button>
         </form>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
             <a href="<?php echo e(route('categories.index')); ?>" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm"><i class="fas fa-tags"></i> Categories</a>
             <a href="<?php echo e(route('drug-types.index')); ?>" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm"><i class="fas fa-capsules"></i> Drug Types</a>
             <a href="<?php echo e(route('units.index')); ?>" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm"><i class="fas fa-balance-scale"></i> Units</a>
@@ -45,6 +46,7 @@
                 <th class="p-2">Strength</th>
                 <th class="p-2">Drug Type</th>
                 <th class="p-2">Stock (pcs)</th>
+                <th class="p-2">Stock (Purchase Unit)</th>
                 <th class="p-2">Purchase Unit</th>
                 <th class="p-2">Sell Price</th>
                 <th class="p-2">Rack</th>
@@ -53,7 +55,7 @@
         </thead>
         <tbody>
             <?php $__empty_1 = true; $__currentLoopData = $products; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $p): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
-            <?php $stock = $p->stock_quantity; ?>
+            <?php $stock = $p->getRawOriginal('stock_quantity') ?? '0.00'; ?>
             <tr class="border-b hover:bg-gray-50">
                 <td class="p-2 font-mono text-xs text-gray-500"><?php echo e($p->sku); ?></td>
                 <td class="p-2 font-semibold"><?php echo e($p->name); ?></td>
@@ -66,24 +68,28 @@
                 </td>
                 <td class="p-2">
                     <span class="font-bold <?php echo e($stock <= 0 ? 'text-red-600' : ($stock <= $p->min_stock ? 'text-amber-600' : 'text-green-600')); ?>">
-                        <?php echo e($stock); ?>
+                        <?php echo e(\App\Support\InventoryQuantity::display($stock)); ?>
 
                     </span>
                 </td>
+                <td class="p-2"><?php echo e(\App\Support\InventoryQuantity::packs($stock, $p->pieces_per_purchase_unit, $p->purchaseUnit?->short_name)); ?></td>
                 <td class="p-2 text-xs"><?php echo e($p->pieces_per_purchase_unit); ?> pcs / <?php echo e($p->purchaseUnit?->short_name); ?></td>
                 <td class="p-2 font-bold">Rs <?php echo e(number_format($p->selling_price, 2)); ?></td>
                 <td class="p-2 text-xs"><?php echo e($p->rack_number); ?></td>
                 <td class="p-2">
+                    <?php if(\App\Support\InventoryAccess::allowed(auth()->user())): ?>
+                    <a href="<?php echo e(route('products.show', $p)); ?>" class="text-blue-600 mr-2" title="View stock history">View</a>
+                    <?php endif; ?>
                     <a href="<?php echo e(route('products.edit', $p)); ?>" class="text-yellow-500"><i class="fas fa-edit"></i></a>
                 </td>
             </tr>
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
-            <tr><td colspan="10" class="p-6 text-center text-gray-400">No products.</td></tr>
+            <tr><td colspan="11" class="p-6 text-center text-gray-400">No products.</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
     </div>
-    <div class="mt-4"><?php echo e($products->links()); ?></div>
+    <div class="mt-4"><?php echo e($products->onEachSide(2)->links('components.inventory-pagination')); ?></div>
 </div>
 <?php $__env->stopSection(); ?>
 

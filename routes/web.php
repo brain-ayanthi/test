@@ -19,6 +19,9 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorPaymentController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PrescriptionEditController;
+use App\Http\Controllers\PatientPrescriptionHistoryController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -112,6 +115,8 @@ Route::get('/', function () {
     return redirect('/login');
 });
 
+require __DIR__.'/stock-adjustments.routes.php';
+require __DIR__.'/inventory-report.routes.php';
 // Auth
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login')->middleware('guest');
 Route::post('/login', [LoginController::class, 'login'])->middleware('guest');
@@ -194,6 +199,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
     Route::get('/reports/doctors', [ReportController::class, 'doctorWise'])->name('reports.doctor-wise');
     Route::get('/reports/radiology', [ReportController::class, 'radiology'])->name('reports.radiology');
+
+
+	 
+	 Route::get('/prescriptions/{prescription}/edit', [PrescriptionEditController::class, 'edit'])
+    ->name('prescriptions.edit');
+
+Route::match(['put', 'patch'], '/prescriptions/{prescription}', [PrescriptionEditController::class, 'update'])
+    ->name('prescriptions.update');
+
+Route::resource('prescriptions', PrescriptionController::class)
+    ->except(['edit', 'update']);
+
+Route::get('/patients/{patient}/prescription-history', [PatientPrescriptionHistoryController::class, 'index'])
+    ->whereNumber('patient')
+    ->name('patients.prescription-history');
 
     // Users & Roles
     Route::resource('users', UserController::class);

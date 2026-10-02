@@ -18,7 +18,7 @@
         @forelse($prescriptions as $rx)
         <tr class="border-b hover:bg-gray-50">
             <td class="p-2 font-mono text-blue-600">{{ $rx->prescription_number }}</td>
-            <td class="p-2">{{ $rx->patient_name }}</td>
+            <td class="p-2">{{ $rx->patient_name ?? $rx->patient?->name ?? '-' }}</td>
             <td class="p-2">{{ $rx->doctor?->name ?? '-' }}</td>
             <td class="p-2">{{ $rx->prescription_date->format('d M Y') }}</td>
             <td class="p-2">Rs {{ number_format($rx->medicine_cost,2) }}</td>
@@ -35,6 +35,20 @@
                         title="Direct Print via ClinicMS Print Server">
                     <i class="fas fa-print"></i>
                 </button>
+				
+				
+                {{-- Use the current row ($rx), not $prescription. --}}
+                @if($rx->sale_status === 'unsold' && $rx->status !== 'cancelled')
+                    <a href="{{ route('prescriptions.edit', $rx) }}"
+                       class="text-yellow-600 ml-2" title="Edit Prescription">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                @else
+                    <span class="text-gray-400 ml-2"
+                          title="Sold, partially sold or cancelled prescriptions cannot be edited">
+                        <i class="fas fa-lock"></i> Edit
+                    </span>
+                @endif
             </td>
         </tr>
         @empty

@@ -3,6 +3,7 @@
 @section('page-title', 'Medicine / Product Inventory')
 
 @section('content')
+@include('reports.partials.inventory-link')
 <div class="bg-white rounded-xl shadow-sm p-5">
     <div class="flex flex-wrap gap-3 justify-between mb-4">
         <form method="GET" class="flex gap-2 flex-1 flex-wrap">
@@ -21,7 +22,7 @@
             </select>
             <button class="bg-blue-500 text-white px-4 py-2 rounded-lg"><i class="fas fa-search"></i></button>
         </form>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
             <a href="{{ route('categories.index') }}" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm"><i class="fas fa-tags"></i> Categories</a>
             <a href="{{ route('drug-types.index') }}" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm"><i class="fas fa-capsules"></i> Drug Types</a>
             <a href="{{ route('units.index') }}" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm"><i class="fas fa-balance-scale"></i> Units</a>
@@ -46,6 +47,7 @@
                 <th class="p-2">Strength</th>
                 <th class="p-2">Drug Type</th>
                 <th class="p-2">Stock (pcs)</th>
+                <th class="p-2">Stock (Purchase Unit)</th>
                 <th class="p-2">Purchase Unit</th>
                 <th class="p-2">Sell Price</th>
                 <th class="p-2">Rack</th>
@@ -54,7 +56,7 @@
         </thead>
         <tbody>
             @forelse($products as $p)
-            @php $stock = $p->stock_quantity; @endphp
+            @php $stock = $p->getRawOriginal('stock_quantity') ?? '0.00'; @endphp
             <tr class="border-b hover:bg-gray-50">
                 <td class="p-2 font-mono text-xs text-gray-500">{{ $p->sku }}</td>
                 <td class="p-2 font-semibold">{{ $p->name }}</td>
@@ -67,22 +69,26 @@
                 </td>
                 <td class="p-2">
                     <span class="font-bold {{ $stock <= 0 ? 'text-red-600' : ($stock <= $p->min_stock ? 'text-amber-600' : 'text-green-600') }}">
-                        {{ $stock }}
+                        {{ \App\Support\InventoryQuantity::display($stock) }}
                     </span>
                 </td>
+                <td class="p-2">{{ \App\Support\InventoryQuantity::packs($stock, $p->pieces_per_purchase_unit, $p->purchaseUnit?->short_name) }}</td>
                 <td class="p-2 text-xs">{{ $p->pieces_per_purchase_unit }} pcs / {{ $p->purchaseUnit?->short_name }}</td>
                 <td class="p-2 font-bold">Rs {{ number_format($p->selling_price, 2) }}</td>
                 <td class="p-2 text-xs">{{ $p->rack_number }}</td>
                 <td class="p-2">
+                    @if(\App\Support\InventoryAccess::allowed(auth()->user()))
+                    <a href="{{ route('products.show', $p) }}" class="text-blue-600 mr-2" title="View stock history">View</a>
+                    @endif
                     <a href="{{ route('products.edit', $p) }}" class="text-yellow-500"><i class="fas fa-edit"></i></a>
                 </td>
             </tr>
             @empty
-            <tr><td colspan="10" class="p-6 text-center text-gray-400">No products.</td></tr>
+            <tr><td colspan="11" class="p-6 text-center text-gray-400">No products.</td></tr>
             @endforelse
         </tbody>
     </table>
     </div>
-    <div class="mt-4">{{ $products->links() }}</div>
+    <div class="mt-4">{{ $products->onEachSide(2)->links('components.inventory-pagination') }}</div>
 </div>
 @endsection

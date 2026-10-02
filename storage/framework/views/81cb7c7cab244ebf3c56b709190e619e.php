@@ -40,11 +40,11 @@
         </div>
     </div>
 
-    <div class="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white rounded-xl p-5 shadow-sm">
+    <div class="bg-emerald-700 text-white rounded-xl p-5 shadow-sm">
         <div class="flex justify-between items-start">
             <div>
-                <p class="text-white/80 text-sm font-medium">Today - GRAND TOTAL INCOME</p>
-                <p class="text-2xl font-bold mt-2">Rs <?php echo e(number_format(($summary['rx_today']->total ?? 0) + ($summary['sales_today'] ?? 0), 2)); ?></p>
+                <p class="text-emerald-100 text-sm font-medium">Today - GRAND TOTAL INCOME</p>
+                <p class="text-2xl font-bold mt-2">Rs <?php echo e(number_format($summary['grand_total_income'] ?? (($summary['rx_today']->total ?? 0) + ($summary['sales_today'] ?? 0)), 2)); ?></p>
                 <p class="text-xs text-white/70 mt-1">Rx + POS Sales</p>
             </div>
             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
@@ -122,7 +122,7 @@
             <div class="flex justify-between items-center bg-white rounded p-2 text-sm">
                 <div>
                     <div class="font-medium text-gray-800"><?php echo e($rx->prescription_number); ?></div>
-                    <div class="text-xs text-gray-500"><?php echo e($rx->patient_name ?? 'Walk-in'); ?> &middot; <?php echo e(optional($rx->prescription_date)->format('M d, Y')); ?></div>
+                    <div class="text-xs text-gray-500"><?php echo e($rx->patient_name ?? 'Walk-in'); ?> &middot; <?php echo e($rx->prescription_date ? \Illuminate\Support\Carbon::parse($rx->prescription_date)->format('M d, Y') : 'N/A'); ?></div>
                 </div>
                 <div class="text-right">
                     <div class="font-bold text-gray-800">Rs <?php echo e(number_format($rx->total_fee, 2)); ?></div>
@@ -207,7 +207,7 @@
             <?php $__empty_1 = true; $__currentLoopData = $summary['expired_batches']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $b): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
             <div class="bg-white/10 rounded p-2">
                 <div class="font-medium text-sm"><?php echo e($b->product->name ?? 'Unknown'); ?></div>
-                <div class="text-xs text-white/70"><?php echo e(optional($b->expiry_date)->format('d M Y')); ?></div>
+                <div class="text-xs text-white/70"><?php echo e(\Illuminate\Support\Carbon::parse($b->expiry_date)->format('d M Y')); ?></div>
             </div>
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
             <p class="text-white/70 text-xs text-center py-2">No expired items.</p>

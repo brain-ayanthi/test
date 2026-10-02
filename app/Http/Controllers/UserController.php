@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Gate;
 use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
     public function index()
     {
+        $this->authorizeManagement();
         $users = User::with('roles:id,name')
             ->select(['id','name','email','phone','is_active','created_at'])
             ->latest('id')->paginate(20);
@@ -19,12 +21,14 @@ class UserController extends Controller
 
     public function create()
     {
+        $this->authorizeManagement();
         $roles = Role::all();
         return view('users.create', compact('roles'));
     }
 
     public function store(Request $request)
     {
+        $this->authorizeManagement();
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
@@ -48,12 +52,14 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        $this->authorizeManagement();
         $roles = Role::all();
         return view('users.edit', compact('user', 'roles'));
     }
 
     public function update(Request $request, User $user)
     {
+        $this->authorizeManagement();
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
@@ -80,10 +86,18 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        $this->authorizeManagement();
         if ($user->id === auth()->id()) {
             return back()->with('error', 'You cannot delete your own account.');
         }
         $user->delete();
         return back()->with('success', 'User deleted.');
     }
+
+    private function authorizeManagement(): void
+    {
+        abort_unless(auth()->user() && auth()->user()->is_active, 403);
+        Gate::authorize('manage users');
+    }
+
 }

@@ -45,6 +45,11 @@
                     <span class="hidden xl:inline">Expense</span>
                     <span class="font-bold">Rs {{ number_format($headerTodayExpense, 2) }}</span>
                 </a>
+                @if(auth()->check() && auth()->user()->is_active && auth()->user()->hasAnyRole(['Admin', 'Doctor']) && \Illuminate\Support\Facades\Route::has('stock-adjustments.index'))
+                <a href="{{ route('stock-adjustments.index') }}" class="bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 px-3 py-2 rounded-lg font-semibold text-sm flex items-center gap-2" title="Stock Adjustments">
+                    <i class="fas fa-sliders-h"></i><span class="hidden xl:inline">Stock Adjustments</span>
+                </a>
+                @endif
                 <a href="{{ route('prescriptions.create') }}" class="bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-semibold text-sm flex items-center gap-2">
                     <i class="fas fa-prescription-bottle-medical"></i> Prescription
                 </a>

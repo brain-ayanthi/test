@@ -17,7 +17,7 @@
         <?php $__empty_1 = true; $__currentLoopData = $prescriptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $rx): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
         <tr class="border-b hover:bg-gray-50">
             <td class="p-2 font-mono text-blue-600"><?php echo e($rx->prescription_number); ?></td>
-            <td class="p-2"><?php echo e($rx->patient_name); ?></td>
+            <td class="p-2"><?php echo e($rx->patient_name ?? $rx->patient?->name ?? '-'); ?></td>
             <td class="p-2"><?php echo e($rx->doctor?->name ?? '-'); ?></td>
             <td class="p-2"><?php echo e($rx->prescription_date->format('d M Y')); ?></td>
             <td class="p-2">Rs <?php echo e(number_format($rx->medicine_cost,2)); ?></td>
@@ -34,6 +34,20 @@
                         title="Direct Print via ClinicMS Print Server">
                     <i class="fas fa-print"></i>
                 </button>
+				
+				
+                
+                <?php if($rx->sale_status === 'unsold' && $rx->status !== 'cancelled'): ?>
+                    <a href="<?php echo e(route('prescriptions.edit', $rx)); ?>"
+                       class="text-yellow-600 ml-2" title="Edit Prescription">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                <?php else: ?>
+                    <span class="text-gray-400 ml-2"
+                          title="Sold, partially sold or cancelled prescriptions cannot be edited">
+                        <i class="fas fa-lock"></i> Edit
+                    </span>
+                <?php endif; ?>
             </td>
         </tr>
         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>

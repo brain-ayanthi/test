@@ -293,3 +293,4 @@ class PrescriptionController extends Controller
             ->with('success', 'Patient added to prescription.');
     }
 }
+

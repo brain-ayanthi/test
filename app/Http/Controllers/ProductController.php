@@ -18,9 +18,10 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         // Aggregate stock in ONE query instead of loading all batches per product (avoids N+1)
-        $query = Product::with(['category:id,name', 'drugType:id,name,color'])
+        $query = Product::query()->select('products.*')
+            ->with(['category:id,name', 'drugType:id,name,color', 'purchaseUnit:id,name,short_name'])
             ->withSum(['batches as stock_quantity' => function ($q) {
-                $q->where('quantity', '>', 0)->where('expiry_date', '>=', now());
+                $q->where('quantity', '>', 0)->whereDate('expiry_date', '>=', now()->toDateString());
             }], 'quantity');
 
         if ($search = $request->input('search')) {
@@ -39,7 +40,7 @@ class ProductController extends Controller
             $query->where('drug_type_id', $drugTypeId);
         }
 
-        $products = $query->select('products.*')->latest('products.id')->paginate(20);
+        $products = $query->latest('products.id')->paginate(20)->withQueryString();
         $categories = Category::where('is_active', true)->get(['id', 'name']);
         $drugTypes = DrugType::where('is_active', true)->get(['id', 'name']);
         $openingStockImported = $this->openingStockImportCompleted();
@@ -279,7 +280,7 @@ class ProductController extends Controller
                         'track_batch' => true,
                     ]);
 
-                    ProductBatch::create([
+                    $openingBatch = ProductBatch::create([
                         'product_id' => $product->id,
                         'batch_number' => $row['batch_number'],
                         'manufacturing_date' => $row['manufacturing_date'] ?: null,
@@ -290,6 +291,9 @@ class ProductController extends Controller
                         'quantity' => $stockPieces,
                         'initial_quantity' => $stockPieces,
                         'rack_number' => $row['rack_number'] ?: null,
+                    ]);
+                    app(\App\Services\InventoryMovementLedger::class)->record($openingBatch->id, '0.00', [
+                        'kind' => 'opening_stock', 'source_id' => 1, 'reference' => 'Opening stock import #1',
                     ]);
                 }
 
@@ -383,10 +387,11 @@ class ProductController extends Controller
         return $slug;
     }
 
-    public function show(Product $product, StockService $stock)
+    public function show(Request $request, Product $product, \App\Services\InventoryReadService $inventory)
     {
-        $summary = $stock->getStockSummary($product->id);
-        return view('inventory.products.show', compact('product', 'summary'));
+        \App\Support\InventoryAccess::authorize($request->user());
+        $data = $inventory->productPage($request, $product->id);
+        return response()->view('inventory.products.show', $data)->header('Cache-Control', 'private, no-store');
     }
 
     public function edit(Product $product)

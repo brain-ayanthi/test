@@ -1,5 +1,6 @@
 <?php $__env->startSection('title', 'Create Prescription'); ?>
 <?php $__env->startSection('page-title', 'Dashboard'); ?>
+<?php ($patientHistoryEndpoint = route('patients.prescription-history', ['patient' => '__PATIENT__'])); ?>
 
 <?php $__env->startPush('styles'); ?>
 <style>
@@ -34,17 +35,37 @@
 /* Radiology tag */
 .rad-tag { display:inline-flex; align-items:center; gap:6px; background:#dbeafe; color:#1e40af; padding:4px 10px; border-radius:9999px; font-size:12px; font-weight:600; }
 .rad-tag button { color:#1e40af; }
+
+/* Selected-patient history; does not restyle or rebuild the Create form. */
+#rxCreateBody[hidden], #patientHistoryPanel[hidden], #patientHistorySelect[hidden] { display:none!important; }
+#patientHistoryPanel { color:#334155; min-width:0; }
+.rxh-header,.rxh-actions,.rxh-pagination,.rxh-card-heading,.rxh-card-subtitle { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.rxh-header { margin:4px 0 12px; }.rxh-header h3 { font-size:20px; font-weight:700; color:#1e293b; }.rxh-header p { margin-top:4px; font-size:14px; color:#2563eb; }
+.rxh-button { padding:7px 12px; border:1px solid #cbd5e1; background:#fff; color:#334155; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; }
+.rxh-button:hover { background:#eff6ff; }.rxh-button:disabled { opacity:.4; cursor:not-allowed; }.rxh-select { margin-top:12px; color:#2563eb; }
+.rxh-draft-note { border:1px solid #bfdbfe; background:#eff6ff; color:#1e40af; border-radius:8px; padding:10px 12px; font-size:12px; margin-bottom:14px; }
+#patientHistoryStatus { font-size:13px; margin:12px 0; }
+.rxh-record { border:1px solid #e2e8f0; border-radius:10px; margin:12px 0; background:#fff; overflow:hidden; }
+.rxh-record summary { padding:14px 16px; cursor:pointer; list-style:none; }.rxh-record summary::-webkit-details-marker { display:none; }.rxh-record summary:hover { background:#f8fafc; }
+.rxh-record[open] summary { background:#f8fafc; border-bottom:1px solid #e2e8f0; }.rxh-record summary:focus-visible { outline:2px solid #2563eb; outline-offset:-2px; }
+.rxh-card-heading>div { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }.rxh-number { color:#2563eb; font-family:monospace; font-size:15px; }.rxh-date { font-size:12px; color:#64748b; }
+.rxh-badge { background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:20px; font-size:11px; text-transform:capitalize; }.rxh-active { background:#dcfce7; color:#166534; }.rxh-completed { background:#dbeafe; color:#1e40af; }.rxh-cancelled { background:#fee2e2; color:#991b1b; }
+.rxh-total { font-weight:700; color:#0f766e; font-size:14px; }.rxh-card-subtitle { margin-top:8px; font-size:12px; color:#64748b; }
+.rxh-record-body { padding:14px 16px; }.rxh-visit+.rxh-visit { border-top:1px dashed #cbd5e1; padding-top:16px; margin-top:16px; }.rxh-visit-heading { font-size:13px; margin-bottom:10px; }
+.rxh-notes { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:12px; }.rxh-note { font-size:12px; }.rxh-note strong { color:#64748b; }.rxh-note p,.rxh-instruction { white-space:pre-wrap; overflow-wrap:anywhere; }
+.rxh-table-wrap { width:100%; overflow-x:auto; }.rxh-table { width:100%; min-width:680px; border-collapse:collapse; font-size:12px; }.rxh-table th { text-align:left; background:#f1f5f9; padding:9px; }.rxh-table td { padding:9px; border-bottom:1px solid #e2e8f0; vertical-align:top; }.rxh-table small { display:block; color:#64748b; margin-top:3px; }.rxh-instruction { min-width:140px; max-width:280px; }
+.rxh-tests { background:#eff6ff; color:#1e40af; border-radius:7px; padding:10px; margin-top:12px; font-size:12px; }.rxh-tests>div { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:7px; }.rxh-tests p { width:100%; white-space:pre-wrap; }
+.rxh-fees { display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:14px; font-size:12px; }.rxh-footnote { font-size:11px; color:#64748b; margin-top:12px; }.rxh-pagination { margin-top:16px; font-size:12px; color:#64748b; }
+
 </style>
 <?php $__env->stopPush(); ?>
 
 <?php $__env->startSection('content'); ?>
 <div class="flex flex-col lg:flex-row gap-5">
-    <div class="flex-1 bg-white rounded-xl shadow-sm p-5">
+    <div class="flex-1 min-w-0 bg-white rounded-xl shadow-sm p-5">
         <div class="flex border-b mb-4 overflow-x-auto">
-            <button class="tab-btn active px-4 py-2 text-gray-600 border-b-2 border-transparent font-semibold text-blue-600 border-blue-600"><i class="fas fa-prescription mr-1"></i> Prescription Create</button>
-            <button class="tab-btn px-4 py-2 text-gray-600 border-b-2 border-transparent font-medium"><i class="fas fa-history mr-1"></i> Prescription History</button>
-            <button class="tab-btn px-4 py-2 text-gray-600 border-b-2 border-transparent font-medium"><i class="fas fa-file-medical mr-1"></i> Image/Documents</button>
-            <button class="tab-btn px-4 py-2 text-gray-600 border-b-2 border-transparent font-medium"><i class="fas fa-credit-card mr-1"></i> Payment</button>
+            <button type="button" id="prescriptionCreateTab" aria-controls="rxCreateBody" class="tab-btn active px-4 py-2 text-gray-600 border-b-2 border-transparent font-semibold text-blue-600 border-blue-600"><i class="fas fa-prescription mr-1"></i> Prescription Create</button>
+            <button type="button" id="patientPrescriptionHistoryTab" aria-controls="patientHistoryPanel" class="tab-btn px-4 py-2 text-gray-600 border-b-2 border-transparent font-medium"><i class="fas fa-history mr-1"></i> Prescription History</button>
             <button class="tab-btn px-4 py-2 text-gray-600 border-b-2 border-transparent font-medium"><i class="fas fa-sticky-note mr-1"></i> Note</button>
             <button class="tab-btn px-4 py-2 text-gray-600 border-b-2 border-transparent font-medium"><i class="fas fa-stream mr-1"></i> Timeline</button>
         </div>
@@ -55,6 +76,7 @@
             <button type="button" onclick="openPatientPanel()" class="text-blue-600 text-sm font-semibold hover:underline"><i class="fas fa-plus-circle mr-1"></i> Add Patient to Prescription</button>
         </div>
 
+        <div id="rxCreateBody">
         
         <div class="mb-4 relative" id="drugSearchWrap">
             <div class="flex gap-2 items-center">
@@ -160,6 +182,18 @@
         <div class="flex justify-end gap-3 mt-6 flex-wrap">
             <button type="button" id="saveBtn" onclick="savePrescription('complete')" class="bg-green-600 hover:bg-green-700 text-white px-8 py-2.5 rounded-lg font-semibold text-lg"><i class="fas fa-check mr-1"></i> Save & Complete (Print)</button>
         </div>
+        </div> 
+        <section id="patientHistoryPanel" hidden data-history-version="patient-history-v1" aria-label="Selected patient prescription history">
+            <div class="rxh-header">
+                <div><h3>Prescription History</h3><p id="patientHistoryName">No patient selected</p></div>
+                <div class="rxh-actions"><button type="button" id="patientHistoryRefresh" class="rxh-button">Refresh</button><button type="button" id="patientHistoryBack" class="rxh-button">Back to Create</button></div>
+            </div>
+            <p class="rxh-draft-note">Your current prescription draft stays on the Create tab. This history is read-only and belongs to the selected patient above.</p>
+            <p id="patientHistoryStatus" class="text-gray-500" role="status" aria-live="polite"></p>
+            <button type="button" id="patientHistorySelect" class="rxh-button rxh-select">Select Patient</button>
+            <div id="patientHistoryResults"></div>
+            <div class="rxh-pagination"><span id="patientHistoryPage"></span><div class="rxh-actions"><button type="button" id="patientHistoryPrev" class="rxh-button" disabled>Previous</button><button type="button" id="patientHistoryNext" class="rxh-button" disabled>Next</button></div></div>
+        </section>
     </div>
 
     
@@ -316,6 +350,7 @@ function renderPatientList(){
 }
 
 function selectPatient(id, forceAdd){
+    saveActivePatientState();
     const p = PATIENTS.find(x=>x.id===id);
     if(!p) return;
     const existingIdx = prescriptionPatients.findIndex(pp=>pp.patient.id===id);
@@ -397,6 +432,7 @@ function renderAll(){
     renderRadiology();
     renderDiagnosis();
     updateTotals();
+    window.ClinicPatientHistory?.patientChanged();
 }
 
 function renderPatientTabs(){
@@ -416,8 +452,11 @@ function switchPatient(i){
 }
 function removePatient(i){
     if(!confirm('Remove this patient from prescription?')) return;
+    saveActivePatientState();
+    const previouslyActive = prescriptionPatients[activePatientIdx];
     prescriptionPatients.splice(i,1);
-    activePatientIdx = Math.min(activePatientIdx, prescriptionPatients.length-1);
+    const keptIndex = prescriptionPatients.indexOf(previouslyActive);
+    activePatientIdx = keptIndex >= 0 ? keptIndex : Math.min(i, prescriptionPatients.length-1);
     renderAll();
 }
 function saveActivePatientState(){
@@ -429,7 +468,8 @@ function saveActivePatientState(){
     pp.diagnosis = document.getElementById('diagInput').value;
     pp.precautions = document.getElementById('precInput').value;
     pp.items = collectMedicineRows();
-    pp.radiologies = Array.from(document.querySelectorAll('#radTags .rad-tag')).map(el => ({temp_id: el.dataset.tid, test_name: el.dataset.name, price: parseFloat(el.dataset.price)||0}));
+    // Keep pp.radiologies intact: it is maintained by addRadiology/removeRadiology.
+    // Do not lose test IDs/notes or change numeric temp IDs by scraping DOM tags.
 }
 
 function renderPatientPanel(){
@@ -961,11 +1001,15 @@ function showRxCreatedPopup(rxNo, rxId, prescription){
     });
 }
 
-// Init
-document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
-    document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active','text-blue-600','border-blue-600'));
-    b.classList.add('active','text-blue-600','border-blue-600');
-}));
+// Tab handlers are installed by ClinicPatientHistory below.
+</script>
+<script src="<?php echo e(asset('js/patient-prescription-history.js')); ?>?v=20260927-1"></script>
+<script>
+ClinicPatientHistory.init({
+    endpoint: <?php echo json_encode($patientHistoryEndpoint, 15, 512) ?>,
+    getPatient: () => prescriptionPatients[activePatientIdx]?.patient || null,
+    selectPatient: () => openPatientPanel()
+});
 </script>
 <?php $__env->stopPush(); ?>
 

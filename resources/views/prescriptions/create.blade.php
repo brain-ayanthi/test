@@ -765,6 +765,14 @@ async function savePrescription(action){
         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...';
     }
 
+    // Clinic-local calendar date as YYYY-MM-DD. Uses the browser's local date
+    // parts (the browser runs in the clinic's timezone, same as the server).
+    function clinicToday(){
+        const d = new Date();
+        const p = n => String(n).padStart(2,'0');
+        return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+    }
+
     try {
     saveActivePatientState();
     for(const pp of prescriptionPatients){
@@ -775,7 +783,11 @@ async function savePrescription(action){
         }
     }
     const payload = {
-        prescription_date: new Date().toISOString().slice(0,10),
+        // LOCAL calendar date, never toISOString(). toISOString() is always UTC, so
+        // between 00:00 and 05:30 Colombo time (UTC+5:30) it stamps the PREVIOUS day.
+        // The Rx number is generated on the server in clinic time, so the two
+        // disagree and every 'Today' figure on the dashboard misses the prescription.
+        prescription_date: clinicToday(),
         patients: prescriptionPatients.map(pp=>({
             patient_id: pp.patient.id,
             doctor_id: pp.doctorId,
